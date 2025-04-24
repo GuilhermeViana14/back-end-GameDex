@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.models.User import User
-from app.components.password_utils import hash_password
+from app.components.password_utils import hash_password, verify_password
 from app.database import get_db
 from pydantic import BaseModel, Field
+from fastapi import status
 
 router = APIRouter()
 
@@ -19,6 +20,10 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True  # Substitui `orm_mode` no Pydantic v2
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 @router.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -42,8 +47,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         # Log detalhado do erro
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
     
-    
-    
 @router.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
     try:
@@ -51,3 +54,17 @@ def test_db(db: Session = Depends(get_db)):
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+    
+@router.post("/login")
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    # Busca o usuário pelo e-mail
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    # Verifica a senha
+    if not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    # Retorna uma mensagem de sucesso (ou um token, caso implemente autenticação JWT no futuro)
+    return {"message": "Login successful", "user": {"email": db_user.email, "first_name": db_user.first_name}}
