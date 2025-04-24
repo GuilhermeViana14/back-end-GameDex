@@ -6,4 +6,5 @@ pydantic[email]
 bcrypt
 sqlalchemy
 psycopg2
-pytest httpx
+pytest
+httpx
