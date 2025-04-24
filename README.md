@@ -1,5 +1,8 @@
 # back-end-GameDex
 
+
+comando para criar as tabelas no pgadmin python -m app.create_tables
+
 # My FastAPI App
 
 This is a FastAPI application structured to demonstrate the separation of concerns through endpoints, components, and models.
