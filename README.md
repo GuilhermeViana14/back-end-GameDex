@@ -1,7 +1,7 @@
 # back-end-GameDex
 
-
-comando para criar as tabelas no pgadmin python -m app.create_tables
+#comando para criar as tabelas no pgadmin
+python -m app.create_tables
 
 # My FastAPI App
 
