@@ -1,50 +1,55 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from app.models.User import User
 from app.components.password_utils import hash_password, verify_password
 from app.database import get_db
-from pydantic import BaseModel, Field
-from fastapi import status
+from pydantic import BaseModel
+from app.components.jwt_utils import create_access_token, decode_access_token
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 
 class UserCreate(BaseModel):
     first_name: str
     email: str
     password: str
 
-# Modelo de resposta (sem o campo password)
 class UserResponse(BaseModel):
     first_name: str
     email: str
 
     class Config:
-        from_attributes = True  # Substitui `orm_mode` no Pydantic v2
+        from_attributes = True
 
 class UserLogin(BaseModel):
     email: str
     password: str
 
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = decode_access_token(token)
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
 @router.post("/cadastro", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        # Verifica se o e-mail já está cadastrado
         existing_user = db.query(User).filter(User.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
-
-        # Hash da senha antes de salvar
         hashed_password = hash_password(user.password)
         db_user = User(first_name=user.first_name, email=user.email, password=hashed_password)
-
-        # Salva o usuário no banco de dados
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-
         return db_user
     except Exception as e:
-        # Log detalhado do erro
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
     
 @router.get("/test-db")
@@ -57,14 +62,17 @@ def test_db(db: Session = Depends(get_db)):
     
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    # Busca o usuário pelo e-mail
     db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user:
+    if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    access_token = create_access_token(data={"sub": db_user.email})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {"email": db_user.email, "first_name": db_user.first_name}
+    }
 
-    # Verifica a senha
-    if not verify_password(user.password, db_user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-
-    # Retorna uma mensagem de sucesso (ou um token, caso implemente autenticação JWT no futuro)
-    return {"message": "Login successful", "user": {"email": db_user.email, "first_name": db_user.first_name}}
+# Exemplo de rota protegida
+@router.get("/me")
+def read_users_me(current_user: str = Depends(get_current_user)):
+    return {"email": current_user}
