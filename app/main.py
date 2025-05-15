@@ -15,5 +15,5 @@ app.add_middleware(
 )
 
 # Register the endpoints
-app.include_router(user_router, prefix="/api", tags=["users"])
+app.include_router(user_router, prefix="/api", tags=["cadastro"])
 app.include_router(api_router, prefix="/api", tags=["games"])

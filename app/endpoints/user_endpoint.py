@@ -9,7 +9,7 @@ from fastapi import status
 router = APIRouter()
 
 class UserCreate(BaseModel):
-    first_name: str = Field(alias="Name")
+    first_name: str
     email: str
     password: str
 
@@ -25,7 +25,7 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
-@router.post("/users", response_model=UserResponse)
+@router.post("/cadastro", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
         # Verifica se o e-mail já está cadastrado
