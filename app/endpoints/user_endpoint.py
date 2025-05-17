@@ -12,7 +12,7 @@ from app.models.Game import Game, UserGame
 
 # Schemas
 from app.schemas.user import UserCreate, UserResponse, UserLogin
-from app.schemas.game import GameCreate
+from app.schemas.game import GameCreate, GameUpdate
 
 # Utils e componentes
 from app.components.password_utils import hash_password, verify_password
@@ -117,6 +117,35 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         "rating": user_game.rating,
         "progress": user_game.progress,
         "platforms": game.platforms,
+    }
+@router.put("/users/{user_id}/games/{game_id}")
+def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    user_game = db.query(UserGame).filter_by(user_id=user_id, game_id=game_id).first()
+    if not user_game:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado para este usuário")
+    
+    # Atualiza os campos fornecidos
+    if game_update.comment is not None:
+        user_game.comment = game_update.comment
+    if game_update.rating is not None:
+        user_game.rating = game_update.rating
+    if game_update.progress is not None:
+        user_game.progress = game_update.progress
+
+    db.commit()
+    db.refresh(user_game)
+
+    return {
+        "message": "Informações do jogo atualizadas com sucesso",
+        "game_id": game_id,
+        "user_id": user_id,
+        "comment": user_game.comment,
+        "rating": user_game.rating,
+        "progress": user_game.progress
     }
 
 
