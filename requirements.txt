@@ -8,3 +8,4 @@ sqlalchemy
 psycopg2
 pytest
 httpx
+python-jose[cryptography]
