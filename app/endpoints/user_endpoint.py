@@ -5,6 +5,7 @@ from app.components.password_utils import hash_password, verify_password
 from app.database import get_db
 from pydantic import BaseModel, Field
 from fastapi import status
+from app.models.Game import Game
 
 router = APIRouter()
 
@@ -68,3 +69,29 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
     # Retorna uma mensagem de sucesso (ou um token, caso implemente autenticação JWT no futuro)
     return {"message": "Login successful", "user": {"email": db_user.email, "first_name": db_user.first_name}}
+
+class GameCreate(BaseModel):
+    name: str
+    rawg_id: int
+
+@router.post("/users/{user_id}/games")
+def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # Verifica se o jogo já existe no banco
+    game = db.query(Game).filter(Game.rawg_id == game_data.rawg_id).first()
+    if not game:
+        game = Game(name=game_data.name, rawg_id=game_data.rawg_id)
+        db.add(game)
+        db.commit()
+        db.refresh(game)
+
+    # Adiciona o jogo à lista do usuário, se ainda não estiver associado
+    if game not in user.games:
+        user.games.append(game)
+        db.commit()
+        db.refresh(user)
+
+    return {"message": "Jogo adicionado com sucesso", "user": user.email, "game": game.name}
