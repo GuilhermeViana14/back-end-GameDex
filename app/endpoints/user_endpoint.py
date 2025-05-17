@@ -96,24 +96,20 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
 
     return {"message": "Jogo adicionado com sucesso", "user": user.email, "game": game.name}
 
-@router.delete("/users/{user_id}/games/{rawg_id}")
-def remove_game_from_user(user_id: int, rawg_id: int, db: Session = Depends(get_db)):
+@router.delete("/users/{user_id}/games/{game_id}")
+def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    game = db.query(Game).filter(Game.rawg_id == rawg_id).first()
+    game = db.query(Game).filter(Game.id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
-    if game not in user.games:
-        raise HTTPException(status_code=400, detail="Jogo não está associado ao usuário")
-
-    # Remover o jogo da lista do usuário
-    user.games.remove(game)
-
-    # Confirmar a alteração no banco de dados
-    db.commit()
-    db.refresh(user)
-
-    return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
+    # Remove o jogo da lista do usuário, se estiver associado
+    if game in user.games:
+        user.games.remove(game)
+        db.commit()
+        return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
+    else:
+        raise HTTPException(status_code=404, detail="Este jogo não está associado a este usuário")
