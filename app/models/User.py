@@ -9,4 +9,4 @@ class User(Base):
     first_name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
-    games = relationship("Game", secondary="user_games", back_populates="users")
+    user_games = relationship("UserGame", back_populates="user")

@@ -1,7 +1,7 @@
 import httpx
 
 RAWG_API_BASE_URL = "https://api.rawg.io/api"
-RAWG_API_KEY = "17592c02a3204e019ac5a4d4ffd83624"  # Substitua pela sua chave de API da RAWG
+RAWG_API_KEY = "17592c02a3204e019ac5a4d4ffd83624" #chave de API
 
 async def fetch_games(page: int = 1, page_size: int = 10):
     """Busca jogos da API RAWG."""
