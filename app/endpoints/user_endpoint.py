@@ -72,7 +72,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": {"email": db_user.email, "first_name": db_user.first_name}
+        "user": {"email": db_user.email, "first_name": db_user.first_name, "id": db_user.id,}
     }
 
 
@@ -101,7 +101,21 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         db.refresh(user)
 
     return {"message": "Jogo adicionado com sucesso", "user": user.email, "game": game.name}
-=======
+
+
+
+#lsitar os jogos do usuario
+@router.get("/users/{user_id}/games")
+def list_user_games(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    # Retorna a lista de jogos associados ao usuário
+    games = [{"id": game.id, "name": game.name, "rawg_id": game.rawg_id} for game in user.games]
+    return {"user": user.email, "games": games}
+
+
+
 # Exemplo de rota protegida
 @router.get("/me")
 def read_users_me(current_user: str = Depends(get_current_user)):
