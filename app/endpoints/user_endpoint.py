@@ -189,8 +189,14 @@ def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_
 
     db.delete(user_game)
     db.commit()
-    return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
 
+    # Verifica se mais alguém tem esse jogo
+    remaining = db.query(UserGame).filter_by(game_id=game_id).first()
+    if not remaining:
+        db.delete(game)
+        db.commit()
+
+    return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
 # Exemplo de rota protegida
 @router.get("/me")
 def read_users_me(current_user: str = Depends(get_current_user)):
