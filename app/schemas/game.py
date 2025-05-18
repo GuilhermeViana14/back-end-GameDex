@@ -10,3 +10,8 @@ class GameCreate(BaseModel):
     comment: Optional[str] = None
     rating: Optional[int] = None
     progress: Optional[str] = None
+
+class GameUpdate(BaseModel):
+    comment: Optional[str] = None
+    rating: Optional[int] = None
+    progress: Optional[str] = None
