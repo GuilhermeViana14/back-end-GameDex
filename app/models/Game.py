@@ -1,3 +1,4 @@
+
 from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -23,3 +24,4 @@ class Game(Base):
 
 # No modelo User.py, adicione:
 # user_games = relationship("UserGame", back_populates="user")
+

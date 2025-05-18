@@ -67,7 +67,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "user": {"email": db_user.email, "first_name": db_user.first_name, "id": db_user.id,}
     }
 
-
+#adicionar jogo
 @router.post("/users/{user_id}/games")
 def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -118,7 +118,9 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         "progress": user_game.progress,
         "platforms": game.platforms,
     }
-@router.put("/users/{user_id}/games/{game_id}")
+
+  #editar jogos adicionados
+ @router.put("/users/{user_id}/games/{game_id}")
 def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -170,8 +172,27 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
         })
     return {"user": user.email, "games": games}
 
+ #excluir jogos adicionados
+@router.delete("/users/{user_id}/games/{game_id}")
+def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    # Remove o jogo da lista do usuário, se estiver associado
+    if game in user.games:
+        user.games.remove(game)
+        db.commit()
+        return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
+    else:
+        raise HTTPException(status_code=404, detail="Este jogo não está associado a este usuário")
 
 # Exemplo de rota protegida
 @router.get("/me")
 def read_users_me(current_user: str = Depends(get_current_user)):
     return {"email": current_user}
+
