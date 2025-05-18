@@ -119,8 +119,8 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         "platforms": game.platforms,
     }
 
-  #editar jogos adicionados
- @router.put("/users/{user_id}/games/{game_id}")
+#editar jogos adicionados
+@router.put("/users/{user_id}/games/{game_id}")
 def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
