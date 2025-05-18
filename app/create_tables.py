@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from app.database import Base, create_database
 from app.models.User import User
-
+from app.models.Game import Game
 # URL de conexão com o banco de dados recém-criado
 DATABASE_URL = "postgresql://postgres:123@localhost/gamedex?client_encoding=utf8"
 

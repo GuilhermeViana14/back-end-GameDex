@@ -1,20 +1,27 @@
-# models/Game.py
-from sqlalchemy import Column, Integer, String, Table, ForeignKey
+
+from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-# Tabela associativa entre usuários e jogos
-user_games = Table(
-    'user_games',
-    Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('game_id', Integer, ForeignKey('games.id'), primary_key=True)
-)
+class UserGame(Base):
+    __tablename__ = "user_games"
+    user_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
+    game_id = Column(Integer, ForeignKey('games.id'), primary_key=True)
+    comment = Column(Text)
+    rating = Column(Integer)  # 0 a 100
+    progress = Column(String)  # Exemplo: "Zerado", "Em andamento", "Platinado", etc.
+    user = relationship("User", back_populates="user_games")
+    game = relationship("Game", back_populates="user_games")
 
 class Game(Base):
     __tablename__ = "games"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    rawg_id = Column(Integer, unique=True)  # Exemplo: ID do jogo conforme a API RAWG
+    rawg_id = Column(Integer, unique=True)
+    background_img = Column(String)  # URL da imagem
+    platforms = Column(String)       # Exemplo: "PC, PS5, Xbox"
+    user_games = relationship("UserGame", back_populates="game")
 
-    users = relationship("User", secondary=user_games, back_populates="games")
+# No modelo User.py, adicione:
+# user_games = relationship("UserGame", back_populates="user")
+

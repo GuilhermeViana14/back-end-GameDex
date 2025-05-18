@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query
 import httpx
 from app.components.api_service import fetch_games, fetch_games_by_name
+# -----------------------------------------------------------------------------
+
 
 router = APIRouter()
 
+# Rota para listar jogos
 @router.get("/games")
 async def list_games(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=40)):
     """
@@ -16,7 +19,8 @@ async def list_games(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1
         return games
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar jogos: {str(e)}")
-    
+
+# Rota para buscar jogos por nome  
 @router.get("/games/search", summary="Busca jogos por nome")
 async def search_games(name: str = Query(..., description="Nome do jogo a ser buscado"), page: int = 1, page_size: int = 10):
     """
