@@ -172,7 +172,6 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
         })
     return {"user": user.email, "games": games}
 
- #excluir jogos adicionados
 @router.delete("/users/{user_id}/games/{game_id}")
 def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -183,13 +182,14 @@ def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_
     if not game:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
-    # Remove o jogo da lista do usuário, se estiver associado
-    if game in user.games:
-        user.games.remove(game)
-        db.commit()
-        return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
-    else:
+    # Remove a associação UserGame
+    user_game = db.query(UserGame).filter_by(user_id=user_id, game_id=game_id).first()
+    if not user_game:
         raise HTTPException(status_code=404, detail="Este jogo não está associado a este usuário")
+
+    db.delete(user_game)
+    db.commit()
+    return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
 
 # Exemplo de rota protegida
 @router.get("/me")
