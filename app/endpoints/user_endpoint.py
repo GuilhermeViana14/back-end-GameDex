@@ -15,7 +15,7 @@ from app.schemas.user import UserCreate, UserResponse, UserLogin
 from app.schemas.game import GameCreate, GameUpdate
 
 # Utils e componentes
-from app.components.password_utils import hash_password, verify_password
+from app.components.password_utils import hash_password, verify_password, validate_password_strength
 from app.components.jwt_utils import create_access_token, decode_access_token
 from app.database import get_db
 from app.components.jwt_utils import get_current_user
@@ -31,6 +31,13 @@ router = APIRouter()
 @router.post("/cadastro", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
+        # Validação de senha forte
+        if not validate_password_strength(user.password):
+            raise HTTPException(
+                status_code=400,
+                detail="A senha deve ter pelo menos 8 caracteres, uma letra maiúscula e um caractere especial."
+            )
+
         existing_user = db.query(User).filter(User.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
@@ -42,7 +49,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         return db_user
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-    
 
 #testar o banco de dados
 @router.get("/test-db")
