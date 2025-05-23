@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import date
 
 
 class GameCreate(BaseModel):
@@ -7,6 +8,7 @@ class GameCreate(BaseModel):
     rawg_id: int
     background_img: Optional[str] = None
     platforms: Optional[str] = None
+    release_date: Optional[date] = None
     comment: Optional[str] = None
     rating: Optional[int] = None
     progress: Optional[str] = None
