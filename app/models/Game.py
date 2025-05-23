@@ -1,5 +1,4 @@
-
-from sqlalchemy import Column, Integer, String, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, Date
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -20,8 +19,8 @@ class Game(Base):
     rawg_id = Column(Integer, unique=True)
     background_img = Column(String)  # URL da imagem
     platforms = Column(String)       # Exemplo: "PC, PS5, Xbox"
+    release_date = Column(Date, nullable=True)
     user_games = relationship("UserGame", back_populates="game")
 
 # No modelo User.py, adicione:
 # user_games = relationship("UserGame", back_populates="user")
-

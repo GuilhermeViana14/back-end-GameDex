@@ -20,6 +20,7 @@ from app.components.jwt_utils import create_access_token, decode_access_token
 from app.database import get_db
 from app.components.jwt_utils import get_current_user
 
+from app.components.api_service import fetch_game_from_rawg
 # -----------------------------------------------------------------------------
 
 
@@ -83,11 +84,14 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
     # Verifica se o jogo já existe no banco
     game = db.query(Game).filter(Game.rawg_id == game_data.rawg_id).first()
     if not game:
+        # Busca os dados do jogo na RAWG.io
+        fetched_game = fetch_game_from_rawg(game_data.rawg_id)
         game = Game(
-            name=game_data.name,
-            rawg_id=game_data.rawg_id,
-            background_img=game_data.background_img,
-            platforms=game_data.platforms
+            name=fetched_game["name"],
+            rawg_id=fetched_game["rawg_id"],
+            background_img=fetched_game["background_img"],
+            platforms=fetched_game["platforms"],
+            release_date=fetched_game["release_date"]  # Salva a data de lançamento
         )
         db.add(game)
         db.commit()
@@ -106,18 +110,12 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         db.add(user_game)
         db.commit()
         db.refresh(user_game)
-    else:
-        # Atualiza dados se já existir
-        user_game.comment = game_data.comment
-        user_game.rating = game_data.rating
-        user_game.progress = game_data.progress
-        db.commit()
-        db.refresh(user_game)
 
     return {
         "message": "Jogo adicionado/atualizado com sucesso",
         "user": user.email,
         "game": game.name,
+        "release_date": game.release_date,
         "background_img": game.background_img,
         "comment": user_game.comment,
         "rating": user_game.rating,
@@ -172,6 +170,7 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
             "rawg_id": game.rawg_id,
             "background_img": game.background_img,
             "platforms": game.platforms,
+            "release_date": game.release_date,
             "comment": user_game.comment,
             "rating": user_game.rating,
             "progress": user_game.progress
