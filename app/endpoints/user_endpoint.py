@@ -177,6 +177,8 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
         })
     return {"user": user.email, "games": games}
 
+
+
 @router.delete("/users/{user_id}/games/{game_id}")
 def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
