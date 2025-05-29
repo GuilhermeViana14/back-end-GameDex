@@ -2,8 +2,9 @@ from fastapi import APIRouter, HTTPException, Query
 from datetime import datetime
 import httpx
 from app.components.api_service import fetch_games, fetch_games_by_name, fetch_games_filtered
+from app.components.api_service import RAWG_API_KEY
 # -----------------------------------------------------------------------------
-RAWG_API_KEY = "17592c02a3204e019ac5a4d4ffd83624"
+
 
 router = APIRouter()
 

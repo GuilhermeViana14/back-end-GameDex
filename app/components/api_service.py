@@ -79,4 +79,3 @@ def fetch_game_from_rawg(rawg_id: int):
         }
     else:
         raise HTTPException(status_code=response.status_code, detail="Erro ao buscar jogo na RAWG.io")
-
