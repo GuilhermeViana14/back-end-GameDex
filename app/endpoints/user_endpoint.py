@@ -19,16 +19,16 @@ from app.components.password_utils import hash_password, verify_password, valida
 from app.components.jwt_utils import create_access_token, decode_access_token
 from app.database import get_db
 from app.components.jwt_utils import get_current_user
-
+from app.components.email_service import send_reset_password_email
 from app.components.api_service import fetch_game_from_rawg
+from datetime import timedelta
+
 # -----------------------------------------------------------------------------
 
 
 router = APIRouter()
 
-
-
-#cadastro do usuario
+# Cadastro do usuário
 @router.post("/cadastro", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
@@ -41,7 +41,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
         existing_user = db.query(User).filter(User.email == user.email).first()
         if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
+            raise HTTPException(status_code=400, detail="Email já registrado")
         hashed_password = hash_password(user.password)
         db_user = User(first_name=user.first_name, email=user.email, password=hashed_password)
         db.add(db_user)
@@ -49,9 +49,9 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.refresh(db_user)
         return db_user
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
-#testar o banco de dados
+# Testar o banco de dados
 @router.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
     try:
@@ -60,13 +60,12 @@ def test_db(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
-
-#login do usuario  
+# Login do usuário  
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha inválidos")
     access_token = create_access_token(data={"sub": db_user.email})
     return {
         "access_token": access_token,
@@ -74,7 +73,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "user": {"email": db_user.email, "first_name": db_user.first_name, "id": db_user.id,}
     }
 
-#adicionar jogo
+# Adicionar jogo
 @router.post("/users/{user_id}/games")
 def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -123,7 +122,7 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         "platforms": game.platforms,
     }
 
-#editar jogos adicionados
+# Editar jogos adicionados
 @router.put("/users/{user_id}/games/{game_id}")
 def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -154,7 +153,7 @@ def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Se
         "progress": user_game.progress
     }
 
-
+# Listar jogos do usuário
 @router.get("/users/{user_id}/games")
 def list_user_games(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -177,8 +176,7 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
         })
     return {"user": user.email, "games": games}
 
-
-
+# Remover jogo do usuário
 @router.delete("/users/{user_id}/games/{game_id}")
 def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -204,8 +202,70 @@ def remove_game_from_user(user_id: int, game_id: int, db: Session = Depends(get_
         db.commit()
 
     return {"message": "Jogo removido com sucesso", "user": user.email, "game": game.name}
+
 # Exemplo de rota protegida
 @router.get("/me")
 def read_users_me(current_user: str = Depends(get_current_user)):
     return {"email": current_user}
 
+# Esqueci minha senha
+@router.post("/forgot-password", operation_id="forgot_password")
+def forgot_password(email: str, db: Session = Depends(get_db)):
+    from email_validator import validate_email, EmailNotValidError
+
+    # Valida o formato do e-mail
+    try:
+        validate_email(email)
+    except EmailNotValidError:
+        raise HTTPException(status_code=400, detail="E-mail inválido")
+
+    # Verifica se o usuário existe
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # Gera o token de redefinição de senha
+    reset_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=30))
+
+    # Tenta enviar o e-mail
+    try:
+        send_reset_password_email(email, reset_token)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar e-mail: {str(e)}")
+
+    # Retorna uma mensagem de sucesso
+    return {"message": "E-mail de redefinição de senha enviado com sucesso"}
+
+# Trocar senha
+@router.post("/reset-password", operation_id="reset_password")
+def reset_password(token: str, new_password: str, db: Session = Depends(get_db)):
+    from app.components.jwt_utils import decode_access_token
+    from app.components.password_utils import hash_password, validate_password_strength
+
+    # Decodifica o token para obter o e-mail do usuário
+    try:
+        payload = decode_access_token(token)
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+
+    # Verifica se o usuário existe
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # Valida a força da nova senha
+    if not validate_password_strength(new_password):
+        raise HTTPException(
+            status_code=400,
+            detail="A senha deve ter pelo menos 8 caracteres, uma letra maiúscula e um caractere especial."
+        )
+
+    # Atualiza a senha do usuário
+    hashed_password = hash_password(new_password)
+    user.password = hashed_password
+    db.commit()
+
+    return {"message": "Senha alterada com sucesso"}
