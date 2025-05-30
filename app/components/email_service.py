@@ -45,3 +45,34 @@ def send_reset_password_email(to_email: str, reset_token: str):
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")
         raise
+    
+    
+def send_confirmation_email(to_email: str, confirmation_token: str):
+    """
+    Envia e-mail de confirmação de cadastro.
+    """
+    try:
+        confirm_link = f"http://localhost:3000/confirmacao-cadastro?token={confirmation_token}"
+        subject = "Confirme seu cadastro - GameDex"
+        body = f"""
+        <html>
+        <body>
+            <p>Olá,</p>
+            <p>Obrigado por se cadastrar no GameDex! Confirme seu cadastro clicando no link abaixo:</p>
+            <p><a href="{confirm_link}">Confirmar cadastro</a></p>
+            <p>Se você não se cadastrou, ignore este e-mail.</p>
+            <p>Equipe GameDex</p>
+        </body>
+        </html>
+        """
+        message = Mail(
+            from_email=FROM_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            html_content=body
+        )
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg.send(message)
+    except Exception as e:
+        print(f"Erro ao enviar e-mail de confirmação: {e}")
+        raise
