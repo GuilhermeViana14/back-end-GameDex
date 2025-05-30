@@ -13,7 +13,7 @@ def send_reset_password_email(to_email: str, reset_token: str):
     """
     try:
         # Cria o link de redefinição de senha
-        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
+        reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
 
         # Configura o conteúdo do e-mail
         subject = "Redefinição de senha - GameDex"
