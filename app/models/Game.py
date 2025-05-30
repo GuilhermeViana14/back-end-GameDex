@@ -9,6 +9,7 @@ class UserGame(Base):
     comment = Column(Text)
     rating = Column(Integer)  # 0 a 100
     progress = Column(String)  # Exemplo: "Zerado", "Em andamento", "Platinado", etc.
+    status = Column(String, default="jogado")  # Novo campo: "jogado"
     user = relationship("User", back_populates="user_games")
     game = relationship("Game", back_populates="user_games")
 

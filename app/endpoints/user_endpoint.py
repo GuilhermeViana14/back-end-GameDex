@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-
+from datetime import timedelta
 # SQLAlchemy
 from sqlalchemy.orm import Session
 
@@ -21,7 +21,7 @@ from app.database import get_db
 from app.components.jwt_utils import get_current_user
 from app.components.email_service import send_reset_password_email, send_confirmation_email
 from app.components.api_service import fetch_game_from_rawg
-from datetime import timedelta
+
 
 # -----------------------------------------------------------------------------
 
@@ -140,6 +140,7 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         "rating": user_game.rating,
         "progress": user_game.progress,
         "platforms": game.platforms,
+        "status": user_game.status
     }
 
 # Editar jogos adicionados
@@ -160,6 +161,10 @@ def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Se
         user_game.rating = game_update.rating
     if game_update.progress is not None:
         user_game.progress = game_update.progress
+    if game_update.status is not None:
+        if game_update.status not in ["jogado", "jogando", "dropado"]:
+            raise HTTPException(status_code=400, detail="Status inválido. Use: jogado, jogando ou dropado.")
+        user_game.status = game_update.status
 
     db.commit()
     db.refresh(user_game)
@@ -170,9 +175,10 @@ def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Se
         "user_id": user_id,
         "comment": user_game.comment,
         "rating": user_game.rating,
-        "progress": user_game.progress
+        "progress": user_game.progress,
+        "status": user_game.status  # Inclua o status na resposta
     }
-
+    
 # Listar jogos do usuário
 @router.get("/users/{user_id}/games")
 def list_user_games(user_id: int, db: Session = Depends(get_db)):
@@ -192,7 +198,8 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
             "release_date": game.release_date,
             "comment": user_game.comment,
             "rating": user_game.rating,
-            "progress": user_game.progress
+            "progress": user_game.progress,
+            "status": user_game.status 
         })
     return {"user": user.email, "games": games}
 
@@ -289,3 +296,33 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
     db.commit()
 
     return {"message": "Senha alterada com sucesso"}
+
+
+@router.get("/users/{user_id}/games/{game_id}", summary="Detalhes de um jogo específico de um usuário")
+def get_user_game_detail(user_id: int, game_id: int, db: Session = Depends(get_db)):
+    """
+    Retorna os detalhes do jogo de um usuário, incluindo informações do relacionamento (comentário, rating, progresso, status) e dados do jogo.
+    """
+    user_game = db.query(UserGame).filter_by(user_id=user_id, game_id=game_id).first()
+    if not user_game:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado para este usuário")
+
+    game = db.query(Game).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    return {
+        "user_id": user_id,
+        "game_id": game_id,
+        "game": {
+            "name": game.name,
+            "rawg_id": game.rawg_id,
+            "background_img": game.background_img,
+            "platforms": game.platforms,
+            "release_date": game.release_date
+        },
+        "comment": user_game.comment,
+        "rating": user_game.rating,
+        "progress": user_game.progress,
+        "status": user_game.status
+    }
