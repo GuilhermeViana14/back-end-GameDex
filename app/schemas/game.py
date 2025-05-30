@@ -17,3 +17,4 @@ class GameUpdate(BaseModel):
     comment: Optional[str] = None
     rating: Optional[int] = None
     progress: Optional[str] = None
+    status: Optional[str] = None  # Adicione esta linha

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-
+from datetime import timedelta
 # SQLAlchemy
 from sqlalchemy.orm import Session
 
@@ -19,38 +19,57 @@ from app.components.password_utils import hash_password, verify_password, valida
 from app.components.jwt_utils import create_access_token, decode_access_token
 from app.database import get_db
 from app.components.jwt_utils import get_current_user
-from app.components.email_service import send_reset_password_email
+from app.components.email_service import send_reset_password_email, send_confirmation_email
 from app.components.api_service import fetch_game_from_rawg
-from datetime import timedelta
+
 
 # -----------------------------------------------------------------------------
 
 
 router = APIRouter()
 
-# Cadastro do usuário
 @router.post("/cadastro", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        # Validação de senha forte
-        if not validate_password_strength(user.password):
-            raise HTTPException(
-                status_code=400,
-                detail="A senha deve ter pelo menos 8 caracteres, uma letra maiúscula e um caractere especial."
-            )
-
-        existing_user = db.query(User).filter(User.email == user.email).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Email já registrado")
+        # Gerar hash da senha antes de salvar
         hashed_password = hash_password(user.password)
-        db_user = User(first_name=user.first_name, email=user.email, password=hashed_password)
+        db_user = User(
+            first_name=user.first_name,
+            email=user.email,
+            password=hashed_password,
+            is_active=False
+        )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+
+        # Gera token de confirmação
+        confirmation_token = create_access_token(data={"sub": db_user.email}, expires_delta=timedelta(hours=24))
+        send_confirmation_email(db_user.email, confirmation_token)
+
         return db_user
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
-
+    
+#confirmação de cadastro
+@router.get("/confirm-email")
+def confirm_email(token: str, db: Session = Depends(get_db)):
+    try:
+        payload = decode_access_token(token)
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        if user.is_active:
+            return {"message": "Conta já confirmada"}
+        user.is_active = True
+        db.commit()
+        return {"message": "Cadastro confirmado com sucesso"}
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+    
 # Testar o banco de dados
 @router.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
@@ -60,12 +79,13 @@ def test_db(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
-# Login do usuário  
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha inválidos")
+    if not db_user.is_active:
+        raise HTTPException(status_code=403, detail="Confirme seu cadastro pelo e-mail antes de fazer login.")
     access_token = create_access_token(data={"sub": db_user.email})
     return {
         "access_token": access_token,
@@ -120,6 +140,7 @@ def add_game_to_user(user_id: int, game_data: GameCreate, db: Session = Depends(
         "rating": user_game.rating,
         "progress": user_game.progress,
         "platforms": game.platforms,
+        "status": user_game.status
     }
 
 # Editar jogos adicionados
@@ -140,6 +161,10 @@ def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Se
         user_game.rating = game_update.rating
     if game_update.progress is not None:
         user_game.progress = game_update.progress
+    if game_update.status is not None:
+        if game_update.status not in ["jogado", "jogando", "dropado"]:
+            raise HTTPException(status_code=400, detail="Status inválido. Use: jogado, jogando ou dropado.")
+        user_game.status = game_update.status
 
     db.commit()
     db.refresh(user_game)
@@ -150,9 +175,10 @@ def update_user_game(user_id: int, game_id: int, game_update: GameUpdate, db: Se
         "user_id": user_id,
         "comment": user_game.comment,
         "rating": user_game.rating,
-        "progress": user_game.progress
+        "progress": user_game.progress,
+        "status": user_game.status  # Inclua o status na resposta
     }
-
+    
 # Listar jogos do usuário
 @router.get("/users/{user_id}/games")
 def list_user_games(user_id: int, db: Session = Depends(get_db)):
@@ -172,7 +198,8 @@ def list_user_games(user_id: int, db: Session = Depends(get_db)):
             "release_date": game.release_date,
             "comment": user_game.comment,
             "rating": user_game.rating,
-            "progress": user_game.progress
+            "progress": user_game.progress,
+            "status": user_game.status 
         })
     return {"user": user.email, "games": games}
 
@@ -269,3 +296,33 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
     db.commit()
 
     return {"message": "Senha alterada com sucesso"}
+
+
+@router.get("/users/{user_id}/games/{game_id}", summary="Detalhes de um jogo específico de um usuário")
+def get_user_game_detail(user_id: int, game_id: int, db: Session = Depends(get_db)):
+    """
+    Retorna os detalhes do jogo de um usuário, incluindo informações do relacionamento (comentário, rating, progresso, status) e dados do jogo.
+    """
+    user_game = db.query(UserGame).filter_by(user_id=user_id, game_id=game_id).first()
+    if not user_game:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado para este usuário")
+
+    game = db.query(Game).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    return {
+        "user_id": user_id,
+        "game_id": game_id,
+        "game": {
+            "name": game.name,
+            "rawg_id": game.rawg_id,
+            "background_img": game.background_img,
+            "platforms": game.platforms,
+            "release_date": game.release_date
+        },
+        "comment": user_game.comment,
+        "rating": user_game.rating,
+        "progress": user_game.progress,
+        "status": user_game.status
+    }

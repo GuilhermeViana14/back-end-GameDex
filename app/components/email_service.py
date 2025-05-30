@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 FROM_EMAIL = "supgamedex@gmail.com"  # Substitua pelo e-mail do remetente
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 def send_reset_password_email(to_email: str, reset_token: str):
     """
@@ -13,7 +14,7 @@ def send_reset_password_email(to_email: str, reset_token: str):
     """
     try:
         # Cria o link de redefinição de senha
-        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
+        reset_link = f"{FRONTEND_URL}/reset-password?token={reset_token}"
 
         # Configura o conteúdo do e-mail
         subject = "Redefinição de senha - GameDex"
@@ -44,4 +45,35 @@ def send_reset_password_email(to_email: str, reset_token: str):
         print(f"E-mail enviado com sucesso para {to_email}. Status: {response.status_code}")
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")
+        raise
+    
+    
+def send_confirmation_email(to_email: str, confirmation_token: str):
+    """
+    Envia e-mail de confirmação de cadastro.
+    """
+    try:
+        confirm_link = f"{FRONTEND_URL}/confirmacao-cadastro?token={confirmation_token}"
+        subject = "Confirme seu cadastro - GameDex"
+        body = f"""
+        <html>
+        <body>
+            <p>Olá,</p>
+            <p>Obrigado por se cadastrar no GameDex! Confirme seu cadastro clicando no link abaixo:</p>
+            <p><a href="{confirm_link}">Confirmar cadastro</a></p>
+            <p>Se você não se cadastrou, ignore este e-mail.</p>
+            <p>Equipe GameDex</p>
+        </body>
+        </html>
+        """
+        message = Mail(
+            from_email=FROM_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            html_content=body
+        )
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg.send(message)
+    except Exception as e:
+        print(f"Erro ao enviar e-mail de confirmação: {e}")
         raise

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
+from datetime import datetime
 import httpx
 from app.components.api_service import fetch_games, fetch_games_by_name, fetch_games_filtered
+from app.components.api_service import RAWG_API_KEY
 # -----------------------------------------------------------------------------
 
 
@@ -33,17 +35,21 @@ async def search_games(name: str = Query(..., description="Nome do jogo a ser bu
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @router.get("/games/filter", summary="Busca jogos com filtros")
 async def filter_games(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=40),
-    genre: str = Query(None, description="Slug do gênero (ex: action, rpg)"),
-    developer: str = Query(None, description="Slug do desenvolvedor (ex: nintendo)"),
-    platform: str = Query(None, description="ID da plataforma (ex: 4 para PC)")
+    genre: str = Query(None),
+    developer: str = Query(None),
+    platform: str = Query(None),
+    search: str = Query(None),
+    best_of_year: bool = Query(False, description="Melhores jogos do ano atual"),
+    popular_2024: bool = Query(False, description="Jogos populares de 2024"),
+    best_of_all_time: bool = Query(False, description="Melhores jogos de todos os tempos")
 ):
     """
-    Busca jogos na API RAWG usando filtros opcionais: gênero, desenvolvedor e plataforma.
+    Busca jogos usando filtros: gênero, desenvolvedor, plataforma, melhores do ano, populares de 2024 ou melhores de sempre.
     """
     try:
         games = await fetch_games_filtered(
@@ -51,7 +57,11 @@ async def filter_games(
             page_size=page_size,
             genre=genre,
             developer=developer,
-            platform=platform
+            platform=platform,
+            search=search,
+            best_of_year=best_of_year,
+            popular_2024=popular_2024,
+            best_of_all_time=best_of_all_time
         )
         return games
     except httpx.HTTPStatusError as e:
