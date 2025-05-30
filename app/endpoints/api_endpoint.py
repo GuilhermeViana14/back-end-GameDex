@@ -37,9 +37,10 @@ async def filter_games(
     platform: str = Query(None),
     best_of_year: bool = Query(False, description="Melhores jogos do ano atual"),
     popular_2024: bool = Query(False, description="Jogos populares de 2024"),
+    best_of_all_time: bool = Query(False, description="Melhores jogos de todos os tempos")
 ):
     """
-    Busca jogos usando filtros: gênero, desenvolvedor, plataforma, melhores do ano ou populares de 2024.
+    Busca jogos usando filtros: gênero, desenvolvedor, plataforma, melhores do ano, populares de 2024 ou mehores de sempre.
     """
     try:
         params = {
@@ -57,10 +58,12 @@ async def filter_games(
         if best_of_year:
             current_year = datetime.now().year
             params["dates"] = f"{current_year}-01-01,{current_year}-12-31"
-            params["ordering"] = "-rating"
+            params["ordering"] = "-metacritic"
         elif popular_2024:
             params["dates"] = "2024-01-01,2024-12-31"
             params["ordering"] = "-added"
+        elif best_of_all_time:
+            params["ordering"] = "-metacritic"    
 
         async with httpx.AsyncClient() as client:
             response = await client.get("https://api.rawg.io/api/games", params=params)
