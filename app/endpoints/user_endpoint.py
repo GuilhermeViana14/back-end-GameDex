@@ -297,7 +297,7 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
 
     return {"message": "Senha alterada com sucesso"}
 
-
+#detlahe de um jogo específico de um usuário
 @router.get("/users/{user_id}/games/{game_id}", summary="Detalhes de um jogo específico de um usuário")
 def get_user_game_detail(user_id: int, game_id: int, db: Session = Depends(get_db)):
     """
