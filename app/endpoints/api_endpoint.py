@@ -58,7 +58,7 @@ async def filter_games(
         if best_of_year:
             current_year = datetime.now().year
             params["dates"] = f"{current_year}-01-01,{current_year}-12-31"
-            params["ordering"] = "-metacritic"
+            params["ordering"] = "-rating"
         elif popular_2024:
             params["dates"] = "2024-01-01,2024-12-31"
             params["ordering"] = "-added"
