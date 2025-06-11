@@ -1,0 +1,13 @@
+FastAPI
+uvicorn
+pydantic
+passlib
+pydantic[email]
+bcrypt
+sqlalchemy
+psycopg2
+pytest
+httpx
+sendgrid
+python-dotenv
+python-jose[cryptography]
