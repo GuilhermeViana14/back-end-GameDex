@@ -1,4 +1,8 @@
+
+
 # back-end-GameDex
+
+para rodar o codigo necessario uma env com as configurações das Key que somentos os responsaveis pelo projeto possuem 
 
 #comando para criar as tabelas no pgadmin
 
