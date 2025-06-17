@@ -2,7 +2,7 @@
 
 # back-end-GameDex
 
-para rodar o codigo necessario uma env com as configurações das Key que somentos os responsaveis pelo projeto possuem 
+para rodar o codigo necessario configurar na env uma API KEY da RAGW API
 
 #comando para criar as tabelas no pgadmin
 
